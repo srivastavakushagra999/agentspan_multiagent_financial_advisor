@@ -1,6 +1,6 @@
 # Agentspan Multi-Agent Financial Advisor
 
-Multi-agent financial advisor built on [Agentspan](https://agentspan.ai/).
+Multi-agent financial advisor built on [Agentspan](https://agentspan.ai/)..
 
 ## Prerequisites
 
