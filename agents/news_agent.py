@@ -5,6 +5,8 @@ import os
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from typing import Literal
+import json
+import re 
 
 load_dotenv()
 #Schema 
@@ -18,6 +20,12 @@ class NewsReport(BaseModel):
     sentiment: Literal["bullish", "bearish", "neutral", "mixed"]
     key_articles: list[Article]
 
+def parse_structured_output(raw_result, model_class):
+    if isinstance(raw_result, str):
+        match = re.search(r"```(?:json)?\s*(.*?)\s*```", raw_result, re.DOTALL)
+        json_str = match.group(1) if match else raw_result
+        return model_class.model_validate_json(json_str)
+    return model_class.model_validate(raw_result)
 
 @tool
 def search_news(query: str) -> list[dict]: 
@@ -51,8 +59,10 @@ agent = Agent(
     model="anthropic/claude-sonnet-4-6",
     tools=[search_news],
     instructions="""You are a news research assistant. You search for and summarize recent financial and political news.
-                    Always use the search_news tool when the user asks about a specific company, asset, market, or event — you don't have real-time knowledge of current events on your own.
-                    When responding, summarize the key facts from the articles you find and mention which sources reported what. Do NOT give direct investment advice (like "you should buy" or "you should sell"). Present the information neutrally and let the user draw their own conclusions.""",
+    Always use the search_news tool when the user asks about a specific company, asset, market, or event — you don't have real-time knowledge of current events on your own.
+    When responding, summarize the key facts from the articles you find and mention which sources reported what. Do NOT give direct investment advice (like "you should buy" or "you should sell"). Present the information neutrally and let the user draw their own conclusions.
+    For the sentiment field, you MUST use exactly one of these four words and nothing else: bullish, bearish, neutral, or mixed. Do not write a descriptive phrase or sentence — pick only one of these exact words based on the overall tone of the news.
+    """,
     output_type=NewsReport
                     )
 
@@ -63,4 +73,7 @@ if __name__ == "__main__":
             if user_input.lower() in ("exit", "quit"):
                 break
             result = runtime.run(agent, user_input)
-            print("Agent:", result.output)
+            report = parse_structured_output(result.output["result"], NewsReport)
+            print("Agent:", report.summary)
+            print("Sentiment:", report.sentiment)
+
