@@ -10,8 +10,26 @@ import re
 from datetime import datetime,timedelta
 import pandas as pd
 import pandas_ta_classic as ta
+from agents.utils import parse_structured_output
 
 load_dotenv()
+
+
+
+class HorizonTrend(BaseModel):
+    horizon: Literal["short", "medium", "long"]
+    trend: Literal["bullish", "bearish", "neutral", "mixed"]
+    pct_change: float
+    sma: float
+    rsi: float | None
+
+class ChartReport(BaseModel):
+    symbol: str
+    current_price: float
+    summary: str
+    trends: list[HorizonTrend]
+
+
 
 def calculate_metrics(bars_list):
     df = pd.DataFrame(bars_list).iloc[::-1].reset_index(drop=True)
@@ -38,10 +56,21 @@ def get_stock_price(symbol: str, horizons: list[Literal["short", "medium", "long
     """Fetches historical stock price data (open, high, low, close, volume) for a given stock ticker symbol like AAPL or MSFT.
         horizon='short' returns daily candles (~30 days) — good for recent/short-term momentum.
         horizon='medium' returns weekly candles (~20 weeks) — good for medium-term trend.
-        horizon='long' returns monthly candles (~12 months) — good for long-term investment perspective.
+        horizon='long' returns monthly candles (~15 months) — good for long-term investment perspective.
         For a complete picture (e.g. long-term investment questions), pass a list of multiple horizons (e.g. ["short", "long"]) in a single call to compare trends across timeframes.
         Each horizon's result includes calculated indicators: percentage change, simple moving average (SMA), and RSI (when enough data is available).
         """
+
+    trade_response = requests.get(
+        "https://data.alpaca.markets/v2/stocks/trades/latest",
+        headers={
+            "APCA-API-KEY-ID": os.getenv("ALPACA_API_KEY"),
+            "APCA-API-SECRET-KEY": os.getenv("ALPACA_SECRET_KEY"),
+        },
+        params={"symbols": symbol},
+    )
+    trade_data = trade_response.json()
+    current_price = trade_data.get("trades", {}).get(symbol, {}).get("p")
 
     horizon_config = {
         "short": {"timeframe": "1Day", "limit": 20, "days_back": 20},
@@ -49,7 +78,7 @@ def get_stock_price(symbol: str, horizons: list[Literal["short", "medium", "long
         "long": {"timeframe": "1Month", "limit": 15, "days_back": 456},
         }
 
-    results = {}
+    results = {"current_price": current_price}
     for horizon in horizons:
         config= horizon_config[horizon]
         start_date = (datetime.now() - timedelta(days=config["days_back"])).strftime("%Y-%m-%d")
@@ -93,6 +122,16 @@ def get_crypto_price(symbol: str, horizons: list[Literal["short", "medium", "lon
         Each horizon's result includes calculated indicators: percentage change, simple moving average (SMA), and RSI (when enough data is available).
         """
 
+    trade_response = requests.get(
+        "https://data.alpaca.markets/v1beta3/crypto/us/latest/trades",
+        headers={
+            "APCA-API-KEY-ID": os.getenv("ALPACA_API_KEY"),
+            "APCA-API-SECRET-KEY": os.getenv("ALPACA_SECRET_KEY"),
+        },
+        params={"symbols": symbol},
+    )
+    trade_data = trade_response.json()
+    current_price = trade_data.get("trades", {}).get(symbol, {}).get("p")
 
     horizon_config = {
         "short": {"timeframe": "1Day", "limit": 20, "days_back": 20},
@@ -100,7 +139,7 @@ def get_crypto_price(symbol: str, horizons: list[Literal["short", "medium", "lon
         "long": {"timeframe": "1Month", "limit": 15, "days_back": 456},
         }
 
-    results = {}
+    results = {"current_price": current_price}
     for horizon in horizons:
         config= horizon_config[horizon]
         start_date = (datetime.now() - timedelta(days=config["days_back"])).strftime("%Y-%m-%d")
@@ -133,3 +172,31 @@ def get_crypto_price(symbol: str, horizons: list[Literal["short", "medium", "lon
         results[horizon] = calculate_metrics(bars_list)
     return results
 
+agent = Agent(
+    name="chart_agent",
+    model="anthropic/claude-sonnet-4-6",
+    tools=[get_stock_price, get_crypto_price],
+    instructions="""You are the chart agent, part of a multi-agent financial advisory system that also includes a news agent. Your job is to fetch and analyze price/technical chart data for stocks and crypto.
+                    You have two tools: get_stock_price and get_crypto_price. Each accepts a symbol and a list of horizons (short, medium, long), and returns a current_price plus, for each horizon, historical bars and calculated indicators (percentage change, SMA, RSI).
+                    For each horizon requested, classify the trend as bullish, bearish, neutral, or mixed based on the indicators — e.g. price above SMA with positive percentage change suggests bullish; RSI above 70 suggests overbought, below 30 suggests oversold.
+                    Do NOT give direct buy/sell/hold recommendations — that is the job of a separate orchestrator agent that combines your analysis with news sentiment. Simply report the current price, the trend, and key indicator values for each timeframe requested, neutrally.""",
+    output_type=ChartReport,
+    )
+
+
+
+if __name__ == "__main__":
+    with AgentRuntime() as runtime:
+        while True:
+            user_input = input("You: ")
+            if user_input.lower() in ("exit", "quit"):
+                break
+            result = runtime.run(agent, user_input)
+            try:
+                report = parse_structured_output(result.output["result"], ChartReport)
+                print("Agent:", report.summary)
+                print("Current price:", report.current_price)
+                for trend in report.trends:
+                    print(f"  [{trend.horizon}] trend={trend.trend} pct_change={trend.pct_change}% sma={trend.sma} rsi={trend.rsi}")
+            except Exception:
+                print("Agent:", result.output.get("result", result.output))

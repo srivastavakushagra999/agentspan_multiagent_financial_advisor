@@ -6,8 +6,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 from typing import Literal
 import json
-import re 
-
+from agents.utils import parse_structured_output
 load_dotenv()
 #Schema 
 class Article(BaseModel):
@@ -19,13 +18,6 @@ class NewsReport(BaseModel):
     summary: str
     sentiment: Literal["bullish", "bearish", "neutral", "mixed"]
     key_articles: list[Article]
-
-def parse_structured_output(raw_result, model_class):
-    if isinstance(raw_result, str):
-        match = re.search(r"```(?:json)?\s*(.*?)\s*```", raw_result, re.DOTALL)
-        json_str = match.group(1) if match else raw_result
-        return model_class.model_validate_json(json_str)
-    return model_class.model_validate(raw_result)
 
 @tool
 def search_news(query: str) -> list[dict]: 
