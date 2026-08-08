@@ -2,3 +2,4 @@ agentspan
 python-dotenv
 pandas
 pandas-ta-classic
+anthropic
