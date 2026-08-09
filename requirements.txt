@@ -3,3 +3,4 @@ python-dotenv
 pandas
 pandas-ta-classic
 anthropic
+streamlit

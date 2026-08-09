@@ -54,9 +54,8 @@ agent = Agent(
     Always use the search_news tool when the user asks about a specific company, asset, market, or event — you don't have real-time knowledge of current events on your own.
     When responding, summarize the key facts from the articles you find and mention which sources reported what. Do NOT give direct investment advice (like "you should buy" or "you should sell"). Present the information neutrally and let the user draw their own conclusions.
     For the sentiment field, you MUST use exactly one of these four words and nothing else: bullish, bearish, neutral, or mixed. Do not write a descriptive phrase or sentence — pick only one of these exact words based on the overall tone of the news.
-    """,
-    output_type=NewsReport
-                    )
+    """
+    )
 
 if __name__ == "__main__":
     with AgentRuntime() as runtime:
@@ -65,7 +64,7 @@ if __name__ == "__main__":
             if user_input.lower() in ("exit", "quit"):
                 break
             result = runtime.run(agent, user_input)
-            report = parse_structured_output(result.output["result"], NewsReport)
+            report = result.output["result"]
             print("Agent:", report.summary)
             print("Sentiment:", report.sentiment)
 
