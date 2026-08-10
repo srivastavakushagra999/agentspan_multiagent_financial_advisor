@@ -46,6 +46,17 @@ Multi-agent financial advisor built on [Agentspan](https://agentspan.ai/)..
    ```
    This starts an interactive chat loop. Type `exit` or `quit` to stop.
 
+   Or run the full router (news + chart specialists) the same way:
+   ```bash
+   python -m agents.router_agent
+   ```
+
+3. Or, for the chat UI instead of the terminal REPL, in a separate terminal (same requirement — Agentspan server already running):
+   ```bash
+   streamlit run app.py
+   ```
+   Opens at `http://localhost:8501`.
+
 ## Agents
 
 - `agents/news_agent.py` — searches and summarizes recent financial and political news via the NewsAPI `/v2/everything` endpoint. Returns a structured `NewsReport` (summary, sentiment, key articles).

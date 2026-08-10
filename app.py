@@ -20,12 +20,13 @@ if prompt := st.chat_input("Ask about a stock, crypto, or market news..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
-
-    context = get_context(SESSION_ID)
+ 
+    context = get_context(session_id=SESSION_ID, window_size=5)
     full_prompt = f"{context}\n\nuser: {prompt}" if context else prompt
 
+    final_text_holder = []
+
     def event_stream():
-        final_output = None
         with AgentRuntime() as runtime:
             for event in runtime.stream(router, full_prompt):
                 if event.type == "handoff":
@@ -35,14 +36,16 @@ if prompt := st.chat_input("Ask about a stock, crypto, or market news..."):
                 elif event.type == "message" and event.content:
                     yield event.content
                 elif event.type == "done":
-                    final_output = event.output
-        if final_output is not None:
-            text = final_output.get("result", final_output) if isinstance(final_output, dict) else final_output
-            yield f"\n\n{text}"
+                    output = event.output
+                    text = output.get("result", output) if isinstance(output, dict) else output
+                    final_text_holder.append(str(text))
+        if final_text_holder:
+            yield f"\n\n{final_text_holder[0]}"
 
     with st.chat_message("assistant"):
-        response_text = st.write_stream(event_stream)
+        st.write_stream(event_stream)
 
-    st.session_state.messages.append({"role": "assistant", "content": response_text})
+    final_text = final_text_holder[0] if final_text_holder else "No response."
+    st.session_state.messages.append({"role": "assistant", "content": final_text})
     save_message(SESSION_ID, "user", prompt)
-    save_message(SESSION_ID, "assistant", response_text)
+    save_message(SESSION_ID, "assistant", final_text)
