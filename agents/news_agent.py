@@ -1,4 +1,4 @@
-from agentspan.agents import Agent, tool, AgentRuntime
+from agentspan.agents import Agent, tool, AgentRuntime, agent_tool
 from agentspan.agents.testing import mock_run, MockEvent, expect
 import requests
 import os

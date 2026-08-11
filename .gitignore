@@ -1,5 +1,5 @@
 .env
 __pycache__/
 *.pyc
-.git.corrupt-backup/
+.git.corrupt-backup*/
 memory.db

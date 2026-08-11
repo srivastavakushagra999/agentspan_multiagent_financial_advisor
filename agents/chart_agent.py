@@ -51,7 +51,7 @@ def calculate_metrics(bars_list):
     }
 
 
-@tool
+@tool(timeout_seconds=15, retry_count=2)
 def get_stock_price(symbol: str, horizons: list[Literal["short", "medium", "long"]] = ["short"]):
     """Fetches historical stock price data (open, high, low, close, volume) for a given stock ticker symbol like AAPL or MSFT.
         horizon='short' returns daily candles (~30 days) — good for recent/short-term momentum.
@@ -68,6 +68,7 @@ def get_stock_price(symbol: str, horizons: list[Literal["short", "medium", "long
             "APCA-API-SECRET-KEY": os.getenv("ALPACA_SECRET_KEY"),
         },
         params={"symbols": symbol},
+        timeout=10,
     )
     trade_data = trade_response.json()
     current_price = trade_data.get("trades", {}).get(symbol, {}).get("p")
@@ -95,6 +96,7 @@ def get_stock_price(symbol: str, horizons: list[Literal["short", "medium", "long
             "sort": "desc",
             "start": start_date,
         },
+        timeout=10,
         )
         data = response.json()
         if response.status_code != 200:
@@ -112,7 +114,7 @@ def get_stock_price(symbol: str, horizons: list[Literal["short", "medium", "long
     return results
 
 
-@tool
+@tool(timeout_seconds=15, retry_count=2)
 def get_crypto_price(symbol: str, horizons: list[Literal["short", "medium", "long"]] = ["short"]):
     """Fetches historical crypto price data (open, high, low, close, volume) for a given crypto trading pair like BTC/USD or ETH/USD.
         horizon='short' returns daily candles (~30 days) — good for recent/short-term momentum.
@@ -129,6 +131,7 @@ def get_crypto_price(symbol: str, horizons: list[Literal["short", "medium", "lon
             "APCA-API-SECRET-KEY": os.getenv("ALPACA_SECRET_KEY"),
         },
         params={"symbols": symbol},
+        timeout=10,
     )
     trade_data = trade_response.json()
     current_price = trade_data.get("trades", {}).get(symbol, {}).get("p")
@@ -156,6 +159,7 @@ def get_crypto_price(symbol: str, horizons: list[Literal["short", "medium", "lon
             "sort": "desc",
             "start": start_date,
         },
+        timeout=10,
         )
         data = response.json()
         if response.status_code != 200:
