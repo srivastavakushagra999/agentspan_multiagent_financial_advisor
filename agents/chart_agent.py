@@ -51,7 +51,7 @@ def calculate_metrics(bars_list):
     }
 
 
-@tool(timeout_seconds=15, retry_count=2)
+@tool(timeout_seconds=15, retry_count=2, max_calls=3)
 def get_stock_price(symbol: str, horizons: list[Literal["short", "medium", "long"]] = ["short"]):
     """Fetches historical stock price data (open, high, low, close, volume) for a given stock ticker symbol like AAPL or MSFT.
         horizon='short' returns daily candles (~30 days) — good for recent/short-term momentum.
@@ -114,7 +114,7 @@ def get_stock_price(symbol: str, horizons: list[Literal["short", "medium", "long
     return results
 
 
-@tool(timeout_seconds=15, retry_count=2)
+@tool(timeout_seconds=15, retry_count=2, max_calls=3)
 def get_crypto_price(symbol: str, horizons: list[Literal["short", "medium", "long"]] = ["short"]):
     """Fetches historical crypto price data (open, high, low, close, volume) for a given crypto trading pair like BTC/USD or ETH/USD.
         horizon='short' returns daily candles (~30 days) — good for recent/short-term momentum.
@@ -183,7 +183,8 @@ agent = Agent(
     instructions="""You are the chart agent, part of a multi-agent financial advisory system that also includes a news agent. Your job is to fetch and analyze price/technical chart data for stocks and crypto.
                     You have two tools: get_stock_price and get_crypto_price. Each accepts a symbol and a list of horizons (short, medium, long), and returns a current_price plus, for each horizon, historical bars and calculated indicators (percentage change, SMA, RSI).
                     For each horizon requested, classify the trend as bullish, bearish, neutral, or mixed based on the indicators — e.g. price above SMA with positive percentage change suggests bullish; RSI above 70 suggests overbought, below 30 suggests oversold.
-                    Do NOT give direct buy/sell/hold recommendations — that is the job of a separate orchestrator agent that combines your analysis with news sentiment. Simply report the current price, the trend, and key indicator values for each timeframe requested, neutrally.""",
+                    Do NOT give direct buy/sell/hold recommendations — that is the job of a separate orchestrator agent that combines your analysis with news sentiment. Simply report the current price, the trend, and key indicator values for each timeframe requested, neutrally.
+                    If get_stock_price or get_crypto_price returns no data (empty current_price, or "No price data found" for a horizon) for a symbol, do NOT retry the same asset with different spellings or formats (e.g. "SUIUSD" vs "SUI/USD" vs "SUI"). One attempt is enough to know the data isn't available. Immediately report to the user that price data for this asset isn't available from your data provider, and stop — do not keep calling the tool.""",
     )
 
 
